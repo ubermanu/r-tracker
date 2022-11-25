@@ -139,4 +139,9 @@ fn main() {
             println!("To: {}", to);
         }
     }
+
+    // If no subcommand is given, then we want to print the help message.
+    if let None = matches.subcommand_name() {
+        cli::build_cli().print_help().unwrap();
+    }
 }
