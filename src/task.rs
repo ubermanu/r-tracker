@@ -1,5 +1,6 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 // The `Entry` struct represents a single task entry in the CSV file
 // It contains the start time, end time, task name, and project name
@@ -23,14 +24,14 @@ impl Task {
         Task {
             task,
             project,
-            start: chrono::Local::now().to_rfc3339(),
+            start: Utc::now().to_rfc3339(),
             end: "".to_string(),
         }
     }
 
     // Returns the start datetime as a `NaiveDateTime`
     pub fn start_date(&self) -> NaiveDateTime {
-        NaiveDateTime::parse_from_str(&self.start, "%Y-%m-%d %H:%M:%S").unwrap()
+        NaiveDateTime::parse_from_str(&self.start, "%Y-%m-%dT%H:%M:%S%.f%z").unwrap()
     }
 
     // Returns the end datetime as a `NaiveDateTime`
@@ -38,7 +39,7 @@ impl Task {
         if self.end == "" {
             None
         } else {
-            Some(NaiveDateTime::parse_from_str(&self.end, "%Y-%m-%d %H:%M:%S").unwrap())
+            Some(NaiveDateTime::parse_from_str(&self.end, "%Y-%m-%dT%H:%M:%S%.f%z").unwrap())
         }
     }
 
@@ -46,7 +47,7 @@ impl Task {
     pub fn duration(&self) -> i64 {
         match self.end_date() {
             Some(end) => end.timestamp() - self.start_date().timestamp(),
-            None => chrono::Local::now().timestamp() - self.start_date().timestamp(),
+            None => Utc::now().timestamp() - self.start_date().timestamp(),
         }
     }
 
@@ -65,5 +66,13 @@ impl Task {
 
     pub fn continue_task(&mut self) {
         self.end = "".to_string();
+    }
+
+    pub fn stop_task(&mut self) {
+        self.end = chrono::Local::now().to_rfc3339();
+    }
+
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
     }
 }

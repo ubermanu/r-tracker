@@ -1,9 +1,9 @@
-use std::env;
-use std::option::Option;
-use std::fs::File;
-use std::path::PathBuf;
-
 use csv;
+
+use std::env;
+use std::fs::File;
+use std::option::Option;
+use std::path::PathBuf;
 use task::Task;
 
 mod cli;
@@ -56,8 +56,6 @@ fn write_entry(entry: &Task) {
 fn main() {
     let matches = cli::build_cli().get_matches();
 
-    println!("{:?}", get_file_path());
-
     // If the subcommand is "start", then we want to start a new task.
     // The clap library will ensure that the required arguments are present.
     if let Some(matches) = matches.subcommand_matches("start") {
@@ -73,7 +71,7 @@ fn main() {
         let last_entry = get_last_entry();
         if let Some(mut entry) = last_entry {
             if entry.in_progress() {
-                entry.end = chrono::Local::now().to_rfc3339();
+                entry.stop_task();
                 write_entry(&entry);
                 println!("Stopped task \"{}\" in project \"{:?}\"", entry.task, entry.project);
                 println!("Duration: {}", entry.duration_str());
@@ -99,10 +97,25 @@ fn main() {
 
     // If the subcommand is "status", then we want to print the in-progress task information.
     if let Some(matches) = matches.subcommand_matches("status") {
-        println!("Printing status");
-
-        if let Some(json) = matches.get_one::<bool>("json") {
-            println!("JSON: {}", json);
+        let last_entry = get_last_entry();
+        if let Some(entry) = last_entry {
+            if entry.in_progress() {
+                if let Some(json) = matches.get_one::<bool>("json") {
+                    match json {
+                        true => println!("{}", entry.to_json()),
+                        false => {
+                            println!("Task: {}", entry.task);
+                            println!("Project: {:?}", entry.project);
+                            println!("Started: {}", entry.start_date().format("%Y-%m-%d %H:%M:%S"));
+                            println!("Duration: {}", entry.duration_str());
+                        }
+                    }
+                }
+            } else {
+                println!("There is no in-progress task");
+            }
+        } else {
+            println!("There is no in-progress task");
         }
     }
 
