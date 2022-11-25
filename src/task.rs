@@ -10,7 +10,7 @@ pub struct Task {
     pub task: String,
     pub project: Option<String>,
     pub start: String,
-    pub end: String,
+    pub end: Option<String>,
 }
 
 // The `serialize_datetime` function is used to serialize the `DateTime` struct
@@ -25,7 +25,7 @@ impl Task {
             task,
             project,
             start: Utc::now().to_rfc3339(),
-            end: "".to_string(),
+            end: None,
         }
     }
 
@@ -36,17 +36,16 @@ impl Task {
 
     // Returns the end datetime as a `NaiveDateTime`
     pub fn end_date(&self) -> Option<NaiveDateTime> {
-        if self.end == "" {
-            None
-        } else {
-            Some(NaiveDateTime::parse_from_str(&self.end, "%Y-%m-%dT%H:%M:%S%.f%z").unwrap())
+        match self.end {
+            Some(ref end) => Some(NaiveDateTime::parse_from_str(end, "%Y-%m-%dT%H:%M:%S%.f%z").unwrap()),
+            None => None,
         }
     }
 
     // Returns the duration of the task in seconds
     pub fn duration(&self) -> i64 {
         match self.end_date() {
-            Some(end) => end.timestamp() - self.start_date().timestamp(),
+            Some(ref end) => end.signed_duration_since(self.start_date()).num_seconds(),
             None => Utc::now().timestamp() - self.start_date().timestamp(),
         }
     }
@@ -65,11 +64,11 @@ impl Task {
     }
 
     pub fn continue_task(&mut self) {
-        self.end = "".to_string();
+        self.end = None;
     }
 
     pub fn stop_task(&mut self) {
-        self.end = chrono::Local::now().to_rfc3339();
+        self.end = Some(Utc::now().to_rfc3339());
     }
 
     pub fn to_json(&self) -> String {
