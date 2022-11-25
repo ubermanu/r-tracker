@@ -2,7 +2,6 @@ use csv;
 
 use std::env;
 use std::fs::File;
-use std::option::Option;
 use std::path::PathBuf;
 use task::Task;
 
@@ -26,31 +25,28 @@ fn get_file_path() -> String {
 // Get the last line of the CSV file
 // And parse it into a `Task` struct
 
-fn get_last_entry() -> Option<Task> {
+fn get_all_tasks() -> Vec<Task> {
+    let mut tasks = Vec::new();
     let path = get_file_path();
-    let file = File::open(path);
-    if let Ok(file) = file {
-        let mut reader = csv::Reader::from_reader(file);
-        let mut last_entry = None;
-        for entry in reader.deserialize() {
-            last_entry = Some(entry.unwrap());
-        }
-        last_entry
-    } else {
-        None
+    let file = File::open(path).unwrap();
+    let mut rdr = csv::Reader::from_reader(file);
+    for result in rdr.deserialize() {
+        let task: Task = result.unwrap();
+        tasks.push(task);
     }
+    tasks
 }
 
-// Write a new entry to the CSV file
-// The entry is serialized into a string and written to the file
+// Write tasks to the CSV file
 
-fn write_entry(entry: &Task) {
+fn write_all_tasks(tasks: Vec<Task>) {
     let path = get_file_path();
-    let file = File::create(path);
-    if let Ok(file) = file {
-        let mut writer = csv::Writer::from_writer(file);
-        writer.serialize(entry).unwrap();
+    let file = File::create(path).unwrap();
+    let mut wtr = csv::Writer::from_writer(file);
+    for task in tasks {
+        wtr.serialize(task).unwrap();
     }
+    wtr.flush().unwrap();
 }
 
 fn main() {
@@ -62,17 +58,21 @@ fn main() {
         let task_name = matches.get_one::<String>("task").unwrap().to_string();
         let project_name = matches.get_one::<String>("project");
         let entry = Task::new(task_name, project_name.cloned());
-        write_entry(&entry);
+        let mut tasks = get_all_tasks();
+        tasks.push(entry.clone());
+        write_all_tasks(tasks);
         println!("Started task \"{}\" in project \"{:?}\"", entry.task, entry.project);
     }
 
     // If the subcommand is "stop", then we want to stop the in-progress task.
     if let Some(_) = matches.subcommand_matches("stop") {
-        let last_entry = get_last_entry();
+        let mut tasks = get_all_tasks();
+        let last_entry = tasks.pop();
         if let Some(mut entry) = last_entry {
             if entry.in_progress() {
                 entry.stop_task();
-                write_entry(&entry);
+                tasks.push(entry.clone());
+                write_all_tasks(tasks);
                 println!("Stopped task \"{}\" in project \"{:?}\"", entry.task, entry.project);
                 println!("Duration: {}", entry.duration_str());
             } else {
@@ -85,10 +85,12 @@ fn main() {
 
     // If the subcommand is "continue", then we want to continue the last task.
     if let Some(_) = matches.subcommand_matches("continue") {
-        let last_entry = get_last_entry();
+        let mut tasks = get_all_tasks();
+        let last_entry = tasks.pop();
         if let Some(mut entry) = last_entry {
             entry.continue_task();
-            write_entry(&entry);
+            tasks.push(entry.clone());
+            write_all_tasks(tasks);
             println!("Continuing task \"{}\" in project \"{:?}\"", entry.task, entry.project);
         } else {
             println!("There were not task to continue");
@@ -97,7 +99,8 @@ fn main() {
 
     // If the subcommand is "status", then we want to print the in-progress task information.
     if let Some(matches) = matches.subcommand_matches("status") {
-        let last_entry = get_last_entry();
+        let mut tasks = get_all_tasks();
+        let last_entry = tasks.pop();
         if let Some(entry) = last_entry {
             if entry.in_progress() {
                 if let Some(json) = matches.get_one::<bool>("json") {

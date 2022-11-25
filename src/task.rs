@@ -5,7 +5,7 @@ use serde_json;
 // The `Entry` struct represents a single task entry in the CSV file
 // It contains the start time, end time, task name, and project name
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Task {
     pub task: String,
     pub project: Option<String>,
